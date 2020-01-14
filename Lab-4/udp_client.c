@@ -118,7 +118,7 @@ void client_fd_handler(int client_fd, client_list_node_t **p_client_list_head) {
 
     case SERVER_MSG_HEARTBEAT:
 #ifdef DEBUG
-        // printf("Receive an heartbeat from server. ACKing...\n");
+        printf("Receive an heartbeat from server. ACKing...\n");
 #endif
         // Store client lists carried by Heartbeat
         if (*p_client_list_head)
@@ -175,7 +175,6 @@ int main(int argc, char **argv) {
     FD_SET(client_fd, &rset);
     FD_SET(STDIN_FILENO, &rset);
 
-    signal(SIGCHLD, SIG_IGN);
     signal(SIGINT, sigint_handler);
 
     client_msg.type = CLIENT_MSG_ONLINE;
