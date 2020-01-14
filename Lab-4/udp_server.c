@@ -62,14 +62,15 @@ void client_msg_handler(int serv_fd, client_list_node_t *client_list_head) {
         client_list_erase_node(client_list_head, client_msg.client_name);
         break;
 
-    case CLIENT_MSG_BROADCAST:
-        printf("[Client %s] Broadcasting msg: %s", client_msg.client_name,
+    case CLIENT_MSG_SENDTO:
+        printf("[Client %s] is sending msg to [Client %s]: %s",
+               client_msg.client_name, client_msg.dest_name,
                client_msg.msg_content);
 
         p = client_list_head;
         for_each_in_client_list(p) {
-            if (strncmp(p->client_name, client_msg.client_name,
-                        LEN_CLIENT_NAME)) {
+            if (strncmp(p->client_name, client_msg.dest_name,
+                        LEN_CLIENT_NAME) == 0) {
 
                 server_msg.type = SERVER_MSG_SEND;
                 strncpy(server_msg.msg_sent.client_name, p->client_name,
@@ -92,7 +93,7 @@ void client_msg_handler(int serv_fd, client_list_node_t *client_list_head) {
         for_each_in_client_list(p) {
             if (strncmp(p->client_name, client_msg.client_name,
                         LEN_CLIENT_NAME) == 0) {
-                    p->unacked_heartbeat = 0;
+                p->unacked_heartbeat = 0;
             }
         }
 
@@ -110,8 +111,21 @@ void send_heartbeat(int serv_fd, client_list_node_t *client_list_head) {
 #ifdef DEBUG
     printf("sending heartbeat to all clients...\n");
 #endif
+    int i = 0;
+    client_list_node_t *p;
 
-    client_list_node_t *p = client_list_head;
+    p = client_list_head;
+    for_each_in_client_list(p) {
+        server_msg.cli_list.cli_addr_list[i].ip =
+            p->client_addr.sin_addr.s_addr;
+        server_msg.cli_list.cli_addr_list[i].port = p->client_addr.sin_port;
+        strncpy(server_msg.cli_list.cli_addr_list[i].client_name,
+                p->client_name, LEN_CLIENT_NAME);
+        i++;
+    }
+    server_msg.cli_list.list_len = i;
+
+    p = client_list_head;
     for_each_in_client_list(p) {
         p->unacked_heartbeat++;
         if (p->unacked_heartbeat > 3) {

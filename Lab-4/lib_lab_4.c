@@ -33,3 +33,13 @@ void client_list_erase_node(client_list_node_t *head, const char *client_name) {
             break;
         }
 }
+
+void client_list_free(client_list_node_t *head) {
+    client_list_node_t *p = head, *p_next;
+
+    while (p) {
+        p_next = p->next;
+        free(p);
+        p = p_next;
+    }
+}
