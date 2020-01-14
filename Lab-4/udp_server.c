@@ -83,6 +83,21 @@ void client_msg_handler(int serv_fd, client_list_node_t *client_list_head) {
         }
         break;
 
+    case CLIENT_MSG_HEARTBEAT_ACK:
+#ifdef DEBUG
+        printf("[Client %s] Acknowledging heartbeat.\n",
+               client_msg.client_name);
+#endif
+        p = client_list_head;
+        for_each_in_client_list(p) {
+            if (strncmp(p->client_name, client_msg.client_name,
+                        LEN_CLIENT_NAME) == 0) {
+                    p->unacked_heartbeat = 0;
+            }
+        }
+
+        break;
+
     default:
         break;
     }
@@ -98,12 +113,22 @@ void send_heartbeat(int serv_fd, client_list_node_t *client_list_head) {
 
     client_list_node_t *p = client_list_head;
     for_each_in_client_list(p) {
+        p->unacked_heartbeat++;
+        if (p->unacked_heartbeat > 3) {
+            printf("[Server] Client %s seems down. "
+                   "Removing it from client list...\n",
+                   p->client_name);
+            client_list_erase_node(client_list_head, p->client_name);
+            continue;
+        }
+
         Sendto(serv_fd, &server_msg, sizeof(server_msg_t), 0,
                (pSA) & (p->client_addr), sizeof(struct sockaddr_in));
     }
 }
 
 int main(int argc, char **argv) {
+    uint64_t expiration_cnt;
     int serv_fd, timer_fd;
     client_list_node_t *client_list_head;
     fd_set rset, ready_set;
@@ -121,8 +146,10 @@ int main(int argc, char **argv) {
         Select(((serv_fd > timer_fd) ? serv_fd : timer_fd) + 1, &ready_set,
                NULL, NULL, NULL);
 
-        if (FD_ISSET(timer_fd, &ready_set))
+        if (FD_ISSET(timer_fd, &ready_set)) {
+            read(timer_fd, &expiration_cnt, sizeof(uint64_t));
             send_heartbeat(serv_fd, client_list_head);
+        }
         if (FD_ISSET(serv_fd, &ready_set))
             client_msg_handler(serv_fd, client_list_head);
     }

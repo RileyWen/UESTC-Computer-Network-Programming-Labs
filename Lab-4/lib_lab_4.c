@@ -19,6 +19,7 @@ void client_list_push_front(client_list_node_t *head, const char *client_name,
 
     strncpy(head->next->client_name, client_name, LEN_CLIENT_NAME);
     head->next->client_addr = *client_addr;
+    head->next->unacked_heartbeat = 0;
 }
 
 void client_list_erase_node(client_list_node_t *head, const char *client_name) {

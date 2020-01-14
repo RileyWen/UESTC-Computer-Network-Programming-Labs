@@ -48,6 +48,7 @@ typedef struct {
 typedef struct _list_node_t {
     char client_name[LEN_CLIENT_NAME];
     struct sockaddr_in client_addr;
+    uint32_t unacked_heartbeat;
     struct _list_node_t *next;
 } client_list_node_t;
 
