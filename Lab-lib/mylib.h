@@ -15,6 +15,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
+#include <sys/timerfd.h>
 #include <unistd.h>
 
 #define MAX_LISTEN_Q 1024
