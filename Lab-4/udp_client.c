@@ -22,6 +22,7 @@ void sigint_handler(int signum) {
 void stdin_handler(int client_fd, client_list_node_t *client_list_head) {
     char line_buf[MAXLINE];
     client_msg_t client_msg;
+    server_msg_t server_msg;
     client_list_node_t *p;
     char client_name_to_be_sent[LEN_CLIENT_NAME];
 
@@ -57,7 +58,8 @@ void stdin_handler(int client_fd, client_list_node_t *client_list_head) {
         if (p) {
             client_msg.type = CLIENT_MSG_SENDTO;
             strncpy(client_msg.client_name, client_name, LEN_CLIENT_NAME);
-            strncpy(client_msg.dest_name, client_name_to_be_sent, LEN_CLIENT_NAME);
+            strncpy(client_msg.dest_name, client_name_to_be_sent,
+                    LEN_CLIENT_NAME);
             strncpy(client_msg.msg_content, cp, LEN_MSG);
             Sendto(client_fd, &client_msg, sizeof(client_msg_t), 0,
                    (pSA)&server_addr, sizeof(struct sockaddr_in));
@@ -69,6 +71,32 @@ void stdin_handler(int client_fd, client_list_node_t *client_list_head) {
         p = client_list_head;
         for_each_in_client_list(p) { printf("\t%s\n", p->client_name); }
         printf("\n");
+    } else if (strcmp("dst", cp) == 0) { // Directly send to another client
+        cp += 4;
+        strncpy(client_name_to_be_sent, cp, LEN_CLIENT_NAME);
+
+        while (*cp != '\0')
+            cp++;
+        cp++;
+
+#ifdef DEBUG
+        printf("Trying directly sending to %s: %s", client_name_to_be_sent, cp);
+#endif
+        p = client_list_head;
+        for_each_in_client_list(p) {
+            if (strncmp(p->client_name, client_name_to_be_sent,
+                        LEN_CLIENT_NAME) == 0)
+                break;
+        }
+
+        if (p) {
+            server_msg.type = SERVER_MSG_DIRECT_COMM;
+            strncpy(server_msg.msg_sent.client_name, client_name,
+                    LEN_CLIENT_NAME);
+            strncpy(server_msg.msg_sent.msg_content, cp, LEN_MSG);
+            Sendto(client_fd, &server_msg, sizeof(server_msg_t), 0,
+                   (pSA)&p->client_addr, sizeof(struct sockaddr_in));
+        }
     }
 }
 
@@ -84,13 +112,13 @@ void client_fd_handler(int client_fd, client_list_node_t **p_client_list_head) {
 
     switch (server_msg.type) {
     case SERVER_MSG_SEND:
-        printf("[Client %s]: %s", server_msg.msg_sent.client_name,
+        printf("[Client %s | SERVER FORWARDING]: %s", server_msg.msg_sent.client_name,
                server_msg.msg_sent.msg_content);
         break;
 
     case SERVER_MSG_HEARTBEAT:
 #ifdef DEBUG
-        printf("Receive an heartbeat from server. ACKing...\n");
+        // printf("Receive an heartbeat from server. ACKing...\n");
 #endif
         // Store client lists carried by Heartbeat
         if (*p_client_list_head)
@@ -103,6 +131,8 @@ void client_fd_handler(int client_fd, client_list_node_t **p_client_list_head) {
                 server_msg.cli_list.cli_addr_list[i].ip;
             cli_addr_temp.sin_port = server_msg.cli_list.cli_addr_list[i].port;
 
+            // printf("%hu\n", ntohs(cli_addr_temp.sin_port));
+
             client_list_push_front(
                 *p_client_list_head,
                 server_msg.cli_list.cli_addr_list[i].client_name,
@@ -113,6 +143,13 @@ void client_fd_handler(int client_fd, client_list_node_t **p_client_list_head) {
         strncpy(client_msg.client_name, client_name, LEN_CLIENT_NAME);
         Sendto(client_fd, &client_msg, sizeof(client_msg_t), 0,
                (pSA)&server_addr, sizeof(struct sockaddr_in));
+        
+        break;
+
+    case SERVER_MSG_DIRECT_COMM:
+        printf("[Client %s | DIRECT COMM]: %s", server_msg.msg_sent.client_name,
+               server_msg.msg_sent.msg_content);
+        break;
 
     default:
         break;

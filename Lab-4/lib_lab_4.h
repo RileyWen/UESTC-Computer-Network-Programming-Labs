@@ -38,6 +38,7 @@ typedef struct {
 #define CLIENT_MSG_OFFLINE 0x3
 #define CLIENT_MSG_SENDTO 0x4
 #define CLIENT_MSG_HEARTBEAT_ACK 0x5
+#define SERVER_MSG_DIRECT_COMM 0x9
 
 typedef struct {
     short type;
